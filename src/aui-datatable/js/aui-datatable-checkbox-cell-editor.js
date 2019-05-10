@@ -79,10 +79,10 @@ var CheckboxCellEditor = A.Component.create({
          */
         _syncElementsFocus: function() {
             var instance = this;
-            var options = instance.options;
+            var optionsNodeList = instance.options;
 
-            if (options && options.size()) {
-                options.item(0).focus();
+            if (optionsNodeList && optionsNodeList.size()) {
+                optionsNodeList.item(0).focus();
             }
         },
 
@@ -94,10 +94,10 @@ var CheckboxCellEditor = A.Component.create({
          */
         _syncElementsName: function() {
             var instance = this;
-            var options = instance.options;
+            var optionsNodeList = instance.options;
 
-            if (options) {
-                options.setAttribute('name', instance.get('elementName'));
+            if (optionsNodeList) {
+                optionsNodeList.setAttribute('name', instance.get('elementName'));
             }
         }
     }
