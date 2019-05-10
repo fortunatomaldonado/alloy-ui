@@ -21,7 +21,7 @@
     "helpers"
   ],
   "scripts": {
-    "prepublish": "gulp build-publish"
+    // "prepublish": "gulp build-publish"
   },
   "files": [
     "build"
