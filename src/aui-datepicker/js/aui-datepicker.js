@@ -139,12 +139,21 @@ A.mix(DatePickerBase.prototype, {
      * @param silent
      */
     clearSelection: function(silent) {
-        var instance = this;
+        var instance = this,
+            activeInput = instance.get('activeInput');
 
         instance.getCalendar()._clearSelection(silent);
 
+        if (Lang.trim(activeInput.val()) == '') {
+            instance._defSelectionChangeFn(
+                {
+                    newSelection: null
+                }
+            );
+        }
+
         if (instance.get('useARIA')) {
-            instance.aria.setAttribute('label', '', instance.get('activeInput'));
+            instance.aria.setAttribute('label', '', activeInput);
         }
     },
 
@@ -300,7 +309,7 @@ A.mix(DatePickerBase.prototype, {
 
         newDates = A.Array.dedupe(newDates);
 
-        if (newDates.length !== prevDates.length || newSelection.length < prevDates.length) {
+        if (newSelection.length && (newDates.length !== prevDates.length || newSelection.length < prevDates.length)) {
             instance.fire('selectionChange', {
                 newSelection: newSelection
             });

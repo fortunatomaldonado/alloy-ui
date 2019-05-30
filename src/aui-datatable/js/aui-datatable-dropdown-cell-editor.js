@@ -66,7 +66,7 @@ DropDownCellEditor = A.Component.create({
     prototype: {
         ELEMENT_TEMPLATE: '<select class="' + [CSS_CELLEDITOR_ELEMENT, CSS_FORM_CONTROL].join(' ') + '"></select>',
 
-        OPTION_TEMPLATE: '<option value="{value}">{label}</option>',
+        OPTION_TEMPLATE: '<option id="{id}" value="{value}">{label}</option>',
 
         /**
          * Get the input value.

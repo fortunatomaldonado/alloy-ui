@@ -310,8 +310,6 @@ DatePickerDelegate.prototype = {
         instance.useInputNodeOnce(event.currentTarget);
 
         instance._userInteractionInProgress = true;
-
-        instance._focusActiveCalendar();
     },
 
     /**
@@ -370,14 +368,23 @@ DatePickerDelegate.prototype = {
 
             if (activeInputValue) {
                 dates = [];
+
                 A.Array.each(
                     activeInputValue.split(dateSeparator),
                     function(text) {
                         text = Lang.trim(text);
+
                         if (text) {
-                            dates.push(A.Date.parse(mask, text));
+                            var date = A.Date.parse(mask, text);
+
+                            if (!Lang.isDate(date)) {
+                                date = new Date();
+                            }
+
+                            dates.push(date);
                         }
-                    });
+                    }
+                );
             }
 
             return dates;

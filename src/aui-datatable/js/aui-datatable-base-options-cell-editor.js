@@ -9,6 +9,7 @@ var BaseOptionsCellEditor,
     CSS_CELLEDITOR_EDIT_DD_HANDLE = A.getClassName('celleditor', 'edit', 'dd', 'handle'),
     CSS_CELLEDITOR_EDIT_DELETE_OPTION = A.getClassName('celleditor', 'edit', 'delete', 'option'),
     CSS_CELLEDITOR_EDIT_HIDE_OPTION = A.getClassName('celleditor', 'edit', 'hide', 'option'),
+    CSS_CELLEDITOR_EDIT_INPUT_VALUEKEY = A.getClassName('celleditor', 'edit', 'input', 'valueKey'),
     CSS_CELLEDITOR_EDIT_INPUT_NAME = A.getClassName('celleditor', 'edit', 'input', 'name'),
     CSS_CELLEDITOR_EDIT_INPUT_VALUE = A.getClassName('celleditor', 'edit', 'input', 'value'),
     CSS_CELLEDITOR_EDIT_LABEL = A.getClassName('celleditor', 'edit', 'label'),
@@ -47,7 +48,7 @@ BaseOptionsCellEditor = A.Component.create({
      */
     ATTRS: {
         /**
-         * Static property of input formatter for modifying the data values
+         * Static attribute of input formatter for modifying the data values
          * for showing on the UI.
          *
          * Default `null` Function will not modify the value.
@@ -75,12 +76,50 @@ BaseOptionsCellEditor = A.Component.create({
          * Array or Object which defines the available options for the
          * `A.BaseOptionsCellEditor`.
          *
+         * Input Array Format:
+         *     [
+         *         'Option Value A',
+         *         'Option Value B'
+         *     ]
+         *
+         * Input/Output Object Format:
+         *     {
+         *         'Option Value A': 'Option Lable A',
+         *         'Option Value B': 'Option Lable B'
+         *     }
+         *
          * @attribute options
          * @default {}
          * @type Object|Array
          */
         options: {
+            getter: '_getOptions',
             setter: '_setOptions',
+            value: {},
+            validator: L.isObject
+        },
+
+        /**
+         * Array or Object which defines the available options for the
+         * `A.BaseOptionsCellEditor`.
+         *
+         * Object Format:
+         *     {
+         *         'option-key-guid': {
+         *             label: 'Option Lable A',
+         *             value: 'Option Value A'
+         *         },
+         *         'option-key-guid': {
+         *             label: 'Option Lable B',
+         *             value: 'Option Value B'
+         *         }
+         *     }
+         *
+         * @attribute options
+         * @default {}
+         * @type Object
+         */
+        optionsInternal: {
             value: {},
             validator: L.isObject
         },
@@ -157,7 +196,7 @@ BaseOptionsCellEditor = A.Component.create({
         },
 
         /**
-         * Static property of output formatter for modifying the data values
+         * Static attribute of output formatter for modifying the data values
          * for output.
          *
          * Default `null` Function will not modify the value.
@@ -203,6 +242,17 @@ BaseOptionsCellEditor = A.Component.create({
                 value: 'Value',
                 valueNotUnique: 'Value not unique.'
             }
+        },
+
+        /**
+         * Stores the input valueKeys.
+         *
+         * @attribute valueKeys
+         * @default ''
+         * @type String
+         */
+        valueKeys: {
+            value: ''
         }
     },
 
@@ -222,12 +272,13 @@ BaseOptionsCellEditor = A.Component.create({
      * @type Array
      * @static
      */
-    UI_ATTRS: ['options'],
+    UI_ATTRS: ['options'], // TODO, do i need to add valueKeys?
 
     prototype: {
         EDIT_TEMPLATE: '<div class="' + CSS_CELLEDITOR_EDIT + '"></div>',
 
         EDIT_OPTION_ROW_TEMPLATE: '<div class="form-inline ' + CSS_CELLEDITOR_EDIT_OPTION_ROW + '">' +
+                '<input class="' + CSS_CELLEDITOR_EDIT_INPUT_VALUEKEY + '"' + 'type="hidden" value="{valueKey}" /> ' +
                 '<div class="form-group">' +
                     '<span class="' + [CSS_CELLEDITOR_EDIT_DD_HANDLE, CSS_ICON, CSS_ICON_GRIP_DOTTED_VERTICAL].join(' ') + '"></span>' +
                 '</div>' +
@@ -288,6 +339,7 @@ BaseOptionsCellEditor = A.Component.create({
             var addOptionLink = instance.editContainer.one('.' + CSS_CELLEDITOR_EDIT_ADD_OPTION);
             var newRow = A.Node.create(
                 instance._createEditOption(
+                    A.guid(),
                     name || '',
                     value || ''
                 )
@@ -317,18 +369,29 @@ BaseOptionsCellEditor = A.Component.create({
             var editContainer = instance.editContainer;
 
             if (editContainer && !editContainer.hasAttribute('hidden')) {
-                var names = editContainer.all('.' + CSS_CELLEDITOR_EDIT_INPUT_NAME);
-                var values = editContainer.all('.' + CSS_CELLEDITOR_EDIT_INPUT_VALUE);
                 var options = {};
 
-                names.each(function(inputName, index) {
-                    var name = inputName.val();
-                    var value = values.item(index).val();
+                var optionRows = editContainer.all('.' + CSS_CELLEDITOR_EDIT_OPTION_ROW);
 
-                    options[value] = name;
+                optionRows.each(function(rowNode) {
+
+                    var rowLabelNode = rowNode.one('.' + CSS_CELLEDITOR_EDIT_INPUT_NAME);
+                    var rowValueNode = rowNode.one('.' + CSS_CELLEDITOR_EDIT_INPUT_VALUE);
+                    var rowValueKeyNode = rowNode.one('.' + CSS_CELLEDITOR_EDIT_INPUT_VALUEKEY);
+
+                    var label = rowLabelNode ? rowLabelNode.val() : '';
+                    var value = rowValueNode ? rowValueNode.val() : '';
+                    var valueKey = rowValueKeyNode ? rowValueKeyNode.val() : '';
+
+                    options[valueKey] = {
+                        label: label,
+                        value: value
+                    };
                 });
 
-                instance.set('options', options);
+                console.log('saveOptions() options:', options);
+
+                instance.set('optionsInternal', options);
 
                 if (instance.get('hideEditContainerOnSave')) {
                     instance.toggleEdit();
@@ -348,15 +411,16 @@ BaseOptionsCellEditor = A.Component.create({
         },
 
         /**
-         * Creates option elements and stores a reference to them in
-         * the `option` property.
+         * Creates option elements and stores a reference to them in an
+         * `options` property.
          * TODO. Rewrite this method.
          *
          * @method _createOptions
-         * @param {Array} val
+         * @param {Object} val
          * @protected
          */
         _createOptions: function(val) {
+            // console.log('_createOptions(val):', val);
             var instance = this;
             var elements = instance.elements;
             var optionsBuffer = [];
@@ -364,12 +428,15 @@ BaseOptionsCellEditor = A.Component.create({
             var optionTpl = instance.OPTION_TEMPLATE;
             var optionWrapperTpl = instance.OPTION_WRAPPER;
 
-            A.each(val, function(oLabel, oValue) {
+            A.each(val, function(option, valueKey) {
+                var label = option.label;
+                var value = option.value;
+
                 var values = {
-                    id: A.guid(),
-                    label: AEscape.html(oLabel),
-                    name: AEscape.html(oValue),
-                    value: AEscape.html(oValue)
+                    id: valueKey,
+                    label: AEscape.html(label),
+                    name: AEscape.html(value),
+                    value: AEscape.html(value)
                 };
 
                 if (optionTpl) {
@@ -394,6 +461,7 @@ BaseOptionsCellEditor = A.Component.create({
             else {
                 elements.setContent(optionsNodeList);
             }
+            // console.log('_createOptions() optionsNodeList:', optionsNodeList);
 
             instance.options = optionsNodeList;
         },
@@ -416,8 +484,15 @@ BaseOptionsCellEditor = A.Component.create({
                 })
             );
 
-            A.each(instance.get('options'), function(name, value) {
-                buffer.push(instance._createEditOption(name, value));
+            var options = instance.get('optionsInternal');
+
+            // console.log("_createEditBuffer() options:", options);
+
+            A.each(options, function(option, valueKey) {
+                var label = option.label;
+                var value = option.value;
+
+                buffer.push(instance._createEditOption(valueKey, label, value));
             });
 
             buffer.push(
@@ -433,15 +508,18 @@ BaseOptionsCellEditor = A.Component.create({
          * Create Edit option.
          *
          * @method _createEditOption
+         * @param {String} valueKey
          * @param {String} name
          * @param {String} value
          * @protected
          * @return {String} HTML string for the `A.BaseOptionsCellEditor` input
          * option.
          */
-        _createEditOption: function(name, value) {
+        _createEditOption: function(valueKey, name, value) {
+            // console.log("_createEditOption(valueKey, name, value):", valueKey, name, value);
+
             var instance = this;
-            var fieldName = A.guid() + '_value';
+            var fieldName = valueKey + '_value';
             var strings = instance.getStrings();
 
             instance.validator.get('rules')[fieldName] = instance.get('optionsValidatorInputRules');
@@ -455,6 +533,7 @@ BaseOptionsCellEditor = A.Component.create({
                     titleName: AEscape.html(strings.name),
                     titleValue: AEscape.html(strings.value),
                     valueName: AEscape.html(name),
+                    valueKey: AEscape.html(valueKey),
                     valueValue: AEscape.html(value)
                 }
             );
@@ -494,6 +573,39 @@ BaseOptionsCellEditor = A.Component.create({
             });
 
             instance._syncEditOptionsUI();
+        },
+
+        /**
+         * Gets the proper format for the `options` attribute from the
+         * `optionsInternal` attribute.
+         *
+         * Output Format:
+         *     {
+         *         'Option Value A': 'Option Lable A',
+         *         'Option Value B': 'Option Lable B'
+         *     }
+         *
+         * @method _getOptions
+         * @protected
+         * @return {Object} Options object.
+         */
+        _getOptions: function () {
+            var instance = this;
+            var optionsInternal = instance.get('optionsInternal');
+
+            // console.log("_getOptions(optionsInternal)", optionsInternal);
+
+            var options = {};
+
+            A.each(optionsInternal, function(option) {
+                var label = option.label;
+                var value = option.value;
+
+                options[value] = label;
+            });
+
+            console.log("_getOptions() options:", options);
+            return options;
         },
 
         /**
@@ -599,23 +711,44 @@ BaseOptionsCellEditor = A.Component.create({
         },
 
         /**
-         * Determines the proper format for the `options` attribute.
+         * Leaves `options` as `{}` but sets the proper format for the
+         * `optionsInternal` attribute.
          *
          * @method _setOptions
-         * @param {Array} val
+         * @param {Object} val
          * @protected
          */
-        _setOptions: function(val) {
+        _setOptions: function (val) {
+            console.log('_setOptions(val):', val);
+            var instance = this;
             var options = {};
 
             if (L.isArray(val)) {
                 A.Array.each(val, function(value) {
-                    options[value] = value;
+                    var valueKey = A.guid();
+
+                    options[valueKey] = {
+                        label: value,
+                        value: value
+                    };
                 });
             }
             else if (L.isObject(val)) {
-                options = val;
+                // TODO If legacyFormat
+                    A.each(val, function(label, value) {
+                        var valueKey = A.guid();
+
+                        options[valueKey] = {
+                            label: label,
+                            value: value
+                        };
+
+                    });
+                // TODO Else
+                    // options = val;
             }
+
+            instance.set('optionsInternal', options);
 
             return options;
         },
@@ -636,20 +769,22 @@ BaseOptionsCellEditor = A.Component.create({
          * Set UI Options values.
          *
          * @method _uiSetOptions
-         * @param {Array} val
          * @protected
          */
-        _uiSetOptions: function(val) {
+        _uiSetOptions: function() {
             var instance = this;
+            var optionsInternal = instance.get('optionsInternal');
+            // console.log('_uiSetOptions() optionsInternal:', optionsInternal);
 
-            instance._createOptions(val);
+            instance._createOptions(optionsInternal);
             instance._uiSetValue(instance.get('value'));
+            // instance._uiSetValueKeys(instance.get('valueKeys')); // TODO do I need to set valueKeys?
             instance._syncElementsName();
         },
 
         /**
          * Sets the `selectedAttrName` (`selected`) attribute on the option
-         * elements matching `val`.
+         * elements matching values in `val`.
          *
          * @method _uiSetValue
          * @param {Array|String} val
@@ -657,6 +792,7 @@ BaseOptionsCellEditor = A.Component.create({
          * @return {Array} Resulting new values.
          */
         _uiSetValue: function(val) {
+            console.log("_uiSetValue(val):", val);
             var instance = this;
 
             var optionsNodeList = instance.options;
@@ -678,6 +814,46 @@ BaseOptionsCellEditor = A.Component.create({
 
             return val;
         }
+
+        //,
+
+        /**
+         * Sets the `selectedAttrName` (`selected`) attribute on the option
+         * elements matching valuesKeys in `valueKeys`.
+         *
+         * @method _uiSetValueKeys
+         * @param {Array|String} valueKeys
+         * @protected
+         * @return {Array} Resulting new keys.
+         */
+        // _uiSetValueKeys: function(valueKeys) {
+        //     var instance = this;
+
+        //     var optionsNodeList = instance.options;
+
+        //     if (optionsNodeList && optionsNodeList.size()) {
+        //         optionsNodeList.set(instance.get('selectedAttrName'), false);
+
+        //         if (L.isValue(valueKeys)) {
+        //             if (!L.isArray(valueKeys)) {
+        //                 valueKeys = String(valueKeys).split(',');
+        //             }
+
+        //             var options = instance.get('options');
+
+        //             A.Array.each(valueKeys, function(valueKey) {
+        //                 var option = options[valueKey];
+
+        //                 var value = option.value || '';
+
+        //                 optionsNodeList.filter('[value="' + AEscape.html(L.trim(value)) + '"]').set(instance.get(
+        //                     'selectedAttrName'), true);
+        //             });
+        //         }
+        //     }
+
+        //     return valueKeys;
+        // }
     }
 });
 
